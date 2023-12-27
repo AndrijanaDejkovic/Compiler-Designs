@@ -1,0 +1,243 @@
+import java_cup.runtime.*;
+import java.io.*;
+
+parser code {:
+    public static void main( String[] args )
+    {
+        try
+        {
+            FileReader file = new FileReader( args[0] );
+            Scanner scanner = new MPLexer( file );
+            MPParser parser = new MPParser( scanner );
+			Symbol syntax_tree = parser.parse();
+			System.out.println(syntax_tree);
+			System.out.println(syntax_tree.value);
+        }
+        catch( Exception e )
+        {
+            e.printStackTrace();
+        }
+    }
+:};
+
+// Terminali
+terminal PROGRAM, END, BEGIN, EPSYLON, ID, DOT, COLON, COMMA, SEMICOLON, INTEGER, REAL, BOOLEAN, CHAR;
+terminal SELECT, CASE, CONST, LESS, LESSOREQ, EQUAL, NOTEQ, GREATER, GREATEROREQ, ASSIGN, LAMBDA;
+terminal LEFTPAR, RIGHTPAR, AND, OR;
+
+// Neterminali
+non terminal Program, Block, Variables, StatementList, Declaration, Variable, Type, NameList, Statement, SelectStatement, Expression;
+non terminal CaseList, Case, And, RelExpression ,Term, ServiceName, RelOp, AndExpression;
+
+
+// Gramatika
+
+
+precedence nonassoc error;
+
+start with Program;
+
+Program::= PROGRAM Block DOT
+{:
+    System.out.println("Smena 1 => Program!");
+:}
+| PROGRAM Block error
+{:
+    System.out.println("Fali tacka u smeni 1!");
+:};
+
+Block ::= BEGIN Variables StatementList END
+{:
+    System.out.println("Smena 2 => Block !");
+:}
+| BEGIN Variables StatementList error
+{:
+    System.out.println("Fali END u Smeni 2");
+:}
+| BEGIN Variables error
+{:
+    System.out.println("Fali StatementList END u Smeni 2");
+:};
+
+Variables ::= Variables Declaration 
+{:
+    System.out.println("Smena 3 => Declarations!");
+:}
+| 
+{:
+    System.out.println("Smena 3 => EPSYLON!");
+:};
+
+Declaration ::= NameList COLON Type SEMICOLON
+{:
+    System.out.println("Smena 4 => Declaration !");
+:}
+| NameList COLON Type error
+{:
+    System.out.println("Fali ; u smeni 4!");
+:};
+
+NameList ::= NameList COMMA ID
+{:
+    System.out.println("Smena 5 => NameList, ID");
+:}
+| ID
+{:
+    System.out.println("Smena 5 => ID");
+:};
+
+Type ::= INTEGER
+{:
+    System.out.println("Smena 6 => Type int!");
+:}
+| REAL
+{:
+    System.out.println("Smena 6 => Type double!");
+:}
+| CHAR
+{:
+    System.out.println("Smena 6 => Type CHAR!");
+:}
+| BOOLEAN
+{:
+    System.out.println("Smena 6 => Type bool!");
+:};
+
+
+StatementList ::= Statement
+{:
+    System.out.println("Smena 7 => Statement!");
+:}
+| StatementList Statement
+{:
+    System.out.println("Smena 7 => StatementList Statement!");
+:};
+
+Statement ::= SelectStatement
+{:
+    System.out.println("Smena 8 => SelectStatement!");
+:}
+| ID ASSIGN Expression SEMICOLON
+{:
+    System.out.println("Smena 8 => ID := Expression;!");
+:}
+| Block
+{:
+    System.out.println("Smena 8 => Block!");
+:};
+
+SelectStatement::= SELECT BEGIN CaseList END 
+{:
+    System.out.println("Smena 9 => SelectStatement!");
+:};
+
+CaseList ::= CaseList Case
+{:
+    System.out.println("Smena 10 => CaseList Case!");
+:}
+| Case
+{:
+    System.out.println("Smena 10 => Case!");
+:}
+| CaseList error 
+{:
+    System.out.println("Fali CASE u smeni 10");
+:};
+
+Case::= CASE Expression LAMBDA Statement
+{:
+    System.out.println("Smena 11 => Case!");
+:}
+| CASE Expression LAMBDA error
+{:
+    System.out.println("Smena 11 => Case!");
+:};
+
+Expression ::= Expression OR AndExpression
+{:
+    System.out.println("Smena 12 => Expression OR AndExpression!");
+:}
+| AndExpression
+{:
+    System.out.println("Smena 12 => AndExpression!");
+:}
+| Expression OR error
+{:
+    System.out.println("Fali AndExpression u smeni 12");
+:};
+
+AndExpression ::= AndExpression AND RelExpression
+{:
+    System.out.println("Smena 13 => AndExpression AND RelExpression!");
+:}
+| RelExpression
+{:
+    System.out.println("Smena 13 => RelExpression!");
+:}
+| AndExpression AND error
+{:
+    System.out.println("Fali RelExpression u smeni 13");
+:};
+
+RelExpression::= Term RelOp Term
+{:
+    System.out.println("Smena 14 => Term RelOp Term!");
+:}
+| Term
+{:
+    System.out.println("Smena 14 => Term!");
+:}
+| Term RelOp error
+{:
+    System.out.println("Fali Term u smeni 14");
+:};
+
+RelOp ::= LESS
+{:
+    System.out.println("Smena 15 => LESS!");
+:}
+| LESSOREQ
+{:
+    System.out.println("Smena 15 => LESSOREQ!");
+:}
+| EQUAL
+{:
+    System.out.println("Smena 15 => EQUAL!");
+:}
+| NOTEQ
+{:
+    System.out.println("Smena 15 => NOTEQ!");
+:}
+| GREATER
+{:
+    System.out.println("Smena 15 => GREATER!");
+:}
+| GREATEROREQ
+{:
+    System.out.println("Smena 15 => GREATEROREQ!");
+:}
+| error
+{:
+    System.out.println("Pogresan operator u smeni 15");
+:};
+
+
+Term ::= ID
+{:
+    System.out.println("Smena 16 => ID ");
+:}
+| CONST
+{:
+    System.out.println("Smena 16 => CONST ");
+:}
+| LEFTPAR Expression RIGHTPAR
+{:
+    System.out.println("Smena 16 => LEFTPAR Expression RIGHTPAR ");
+:}
+| LEFTPAR Expression error
+{:
+    System.out.println("Nedostaje ) u smeni 16 ");
+:};
+
+
+

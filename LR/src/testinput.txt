@@ -1,0 +1,5 @@
+select 
+begin 
+	case x => x:=10; 
+end
+	

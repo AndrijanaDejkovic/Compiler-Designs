@@ -1,0 +1,19 @@
+program
+begin
+ |*ovo je komentar*|
+ a:integer;
+ b:char;
+ c:real;
+ b:boolean;
+ proba : char;
+ 
+
+ a:=[0]356;
+ b:='c';
+ c:=1.[5];
+ b:=false;
+ 
+ select begin
+ 	case [0]255 and 'b' < 'd' => proba:=50;
+ end
+end
