@@ -1,0 +1,367 @@
+import java_cup.runtime.*;
+import java.io.*;
+import java_cup.runtime.Scanner;
+import SymbolTable.*;
+import java.util.*;
+
+parser code {:
+    public int errNo = 0;
+    public int warnNo = 0;
+    
+    SymbolTable symbolTable;
+    public static void main( String[] args )
+    {
+        try
+        {
+            FileReader file = new FileReader( args[0] );
+            Scanner scanner = new MPLexer( file );
+            MPParser parser = new MPParser( scanner );
+			Symbol syntax_tree = parser.parse();
+			System.out.println(syntax_tree);
+			System.out.println(syntax_tree.value);
+            parser.checkWarnings();
+		    if ( parser.errNo == 0 && parser.warnNo == 0 )
+		      System.out.println( "Analiza zavrsena. U kodu nema gresaka." );
+		    else
+		      System.out.println( "Analiza zavrsena. Broj gresaka: " + parser.errNo 
+		         + " Broj upozorenja: " + parser.warnNo );
+        }
+        catch( Exception e )
+        {
+            e.printStackTrace();
+        }
+    }
+
+    public void checkWarnings()
+    {
+      SymbolNode current = symbolTable.getVariables();
+      while ( current != null )
+        {
+            Variable var = ( Variable ) current;
+            if ( var.last_def != -1 && var.last_use == -1 )
+            {
+                System.out.println( "Upozorenje: Promenljiva " + var.name + 
+                    " je deklarisana, ali se nigde ne koristi." );
+                warnNo++;
+            }
+            else if ( var.last_def > var.last_use )
+            {
+                System.out.println( "Upozorenje: Vrednost dodeljena promeljivoj " +
+                    var.name + " u liniji " + var.last_def + " se nigde ne koristi." );
+                warnNo++;
+            }
+            current = current.next;
+        }
+    }
+
+public void syntax_error(Symbol cur_token)
+   {
+   	  
+   }
+   
+public void report_error(String message, Object info)
+   {
+   	   System.out.print( message );
+   }
+   
+public int getLine()
+   {
+   	  return (( MPLexer) getScanner()).getLine();
+   }
+:};
+
+init with {:
+	symbolTable = new SymbolTable();
+:};
+
+// Terminali
+terminal PROGRAM, END, BEGIN, EPSYLON, DOT, COLON, COMMA, SEMICOLON, INTEGER, REAL, BOOLEAN, CHAR;
+terminal SELECT, CASE, LESS, LESSOREQ, EQUAL, NOTEQ, GREATER, GREATEROREQ, ASSIGN, LAMBDA;
+terminal LEFTPAR, RIGHTPAR, AND, OR;
+terminal String ID;
+terminal Integer INTCONST;
+terminal Double DOUBLECONST;
+terminal Boolean BOOLCONST;
+terminal Character CHARCONST;
+terminal String STRINGCONST;
+
+// Neterminali
+non terminal Program, Block, Variables, StatementList, Declaration, Variable, Statement, SelectStatement;
+non terminal CaseList, Case, And, ServiceName, RelOp;
+non terminal Type Type, RelExpression, Term, Expression, AndExpression;
+non terminal Constant CONST;
+non terminal ArrayList NameList;
+
+// Gramatika
+
+
+start with Program;
+
+Program::= PROGRAM Block DOT
+{:
+  
+:};
+
+Block ::= BEGIN Variables StatementList END
+{:
+    
+:};
+
+Variables ::= Variables Declaration 
+{:
+   
+:}
+| 
+{:
+    
+:};
+
+Declaration ::= NameList:niz COLON Type:t SEMICOLON
+{:
+ if (niz != null && !niz.isEmpty()) {
+    for ( int i=0; i<niz.size(); i++ )
+    {
+        String ime = (String) niz.get(i);
+        if ( ! parser.symbolTable.addVar(ime, t ) )
+            {
+                System.out.println("Ggreska u liniji " + parser.getLine() + ": " + "Promenljiva " + ime + " je vec deklarisana." );
+                parser.errNo++;
+            }
+        else
+        {
+        
+        }
+    }
+ }
+:};
+
+NameList ::= NameList : niz COMMA ID : ime
+{:
+     
+    niz.add(ime);
+    RESULT = niz; 
+:}
+| ID : ime
+{:
+    RESULT = new ArrayList<String>();
+    RESULT.add(ime); 
+:};
+
+Type ::= INTEGER
+{:
+    RESULT = parser.symbolTable.getType( "int" );
+:}
+| REAL
+{:
+    RESULT = parser.symbolTable.getType( "double" );
+:}
+| CHAR
+{:
+    RESULT = parser.symbolTable.getType( "char" );
+:}
+| BOOLEAN
+{:
+    RESULT = parser.symbolTable.getType( "bool" );
+:};
+
+StatementList ::= Statement
+{:
+    
+:}
+| StatementList Statement
+{:
+    
+:};
+
+Statement ::= SelectStatement
+{:
+    
+:}
+| ID:id ASSIGN Expression:t1 SEMICOLON
+{:
+      Variable var = parser.symbolTable.getVar( id );
+            if ( var == null )
+            {
+                System.out.println( "Greska u liniji " + parser.getLine() + 
+                    ": promenljiva " + id + " nije deklarisana.");
+                parser.errNo++;
+            }
+            else 
+            {
+                var.last_def = parser.getLine();
+                if ( var.type.tkind != t1.tkind )
+                {
+                    System.out.println( "Greska u liniji " + parser.getLine() + 
+                        ": Neslaganje tipa u naredbi dodele." );
+                    parser.errNo++;
+                }
+            }
+:}
+| Block
+{:
+    
+:};
+
+SelectStatement::= SELECT BEGIN CaseList END 
+{:
+    
+:};
+
+CaseList ::= CaseList Case
+{:
+    
+:}
+| Case
+{:
+    
+:};
+
+Case::= CASE Expression:t LAMBDA Statement
+{:
+     if(t.tkind != Type.BOOL)
+            {
+                System.out.println( "Greska u liniji " + parser.getLine() + 
+                    ": Izraz u uslovu case mora biti tipa bool." );
+                parser.errNo++;
+            }
+:};
+
+Expression ::= Expression:t1 OR AndExpression:t2
+{:
+    if(t1.tkind != Type.BOOL || t2.tkind != Type.BOOL)
+            {
+                System.out.println( "Greska u liniji " + parser.getLine() + 
+                    ": Oba operatora moraju biti tipa bool" );
+                parser.errNo++;
+                RESULT = parser.symbolTable.getType("unknown");
+            }
+:}
+| AndExpression : t
+{:
+    RESULT = t;
+:};
+
+AndExpression ::= AndExpression:t1 AND RelExpression:t2
+{:
+     if(t1.tkind != Type.BOOL || t2.tkind != Type.BOOL)
+            {
+                System.out.println( "Greska u liniji " + parser.getLine() + 
+                    ": Oba operatora moraju biti tipa bool" );
+                parser.errNo++;
+
+                RESULT = parser.symbolTable.getType("unknown");
+            }
+    else 
+        {
+            RESULT = parser.symbolTable.getType("bool");
+        }
+    
+:}
+| RelExpression:t
+{:
+     RESULT = t;
+:};
+
+RelExpression::= Term:t1 RelOp Term:t2
+{:
+   if(!(t1.tkind == Type.DOUBLE || t1.tkind == Type.INT) || !(t2.tkind == Type.DOUBLE|| t2.tkind == Type.INT))
+        {
+            System.out.println( "Greska u liniji " + parser.getLine() + 
+                ": Oba operatora moraju biti numerickog tipa" );
+            parser.errNo++;
+
+            RESULT = parser.symbolTable.getType("unknown");
+        }
+    else
+        {
+            if(t1.tkind == Type.DOUBLE || t2.tkind == Type.DOUBLE)
+                    RESULT = parser.symbolTable.getType("double");
+                else
+                    RESULT = parser.symbolTable.getType("int");
+        }
+:}
+| Term:t
+{:
+     RESULT = t;
+:};
+
+RelOp ::= LESS
+{:
+
+:}
+| LESSOREQ
+{:
+    
+:}
+| EQUAL
+{:
+    
+:}
+| NOTEQ
+{:
+    
+:}
+| GREATER
+{:
+    
+:}
+| GREATEROREQ
+{:
+    
+:};
+
+
+Term ::= ID:id
+{:
+     Variable var = parser.symbolTable.getVar( id );
+            if ( var == null )
+            {
+                System.out.println( "Greska u liniji " + parser.getLine() + 
+                    ": promenljiva " + id + " nije deklarisana.");
+                RESULT = parser.symbolTable.getType( "unknown" );
+                parser.errNo++;
+            }
+            else 
+            {
+                RESULT = var.type;
+                if ( var.last_def == -1 )
+                {
+                    System.out.println( "Grreska u liniji " + parser.getLine() + 
+                        ": promenljiva " + id + " nije inicijalizovana.");
+                    parser.errNo++;
+                }
+                var.last_use = parser.getLine();
+            }
+:}
+| CONST : c
+{:
+    RESULT = c.type;
+:}
+| LEFTPAR Expression RIGHTPAR
+{:
+    
+:};
+
+CONST ::= INTCONST:c
+        {:
+            RESULT = new Constant( parser.symbolTable.getType( "int" ), c );
+        :}
+        | DOUBLECONST:c
+        {:
+            RESULT = new Constant( parser.symbolTable.getType( "double" ), c );
+        :}
+        | BOOLCONST:c
+        {:
+            RESULT = new Constant( parser.symbolTable.getType( "bool" ), c );
+        :}
+        | CHARCONST:c
+        {:
+            RESULT = new Constant( parser.symbolTable.getType( "char" ), c );
+        :}
+        | STRINGCONST:c
+        {:
+            RESULT = new Constant( parser.symbolTable.getType( "string" ), c );
+        :};
+
+
+
